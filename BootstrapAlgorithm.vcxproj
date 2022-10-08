@@ -131,12 +131,12 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>D:\VS Project\BootstrapAlgorithm\BootstrapAlgorithm\include;D:\VS Project\Eigen\eigen-3.3.9;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\VS Project\BootstrapAlgorithm\BootstrapAlgorithm\include;D:\VS Project\Eigen\eigen-3.3.9;E:\VS Project\BootstrapAlgorithm\include;E:\VS Project\Eigen\eigen-3.4.0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>D:\VS Project\BootstrapAlgorithm\BootstrapAlgorithm\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\VS Project\BootstrapAlgorithm\BootstrapAlgorithm\lib;E:\VS Project\BootstrapAlgorithm\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>libnlopt.dll.a;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -163,16 +163,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="bin\libnlopt.dll">
-      <FileType>Document</FileType>
-    </CopyFileToFolders>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="src\BootstrapAlgorithm.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Trace.h" />
     <ClInclude Include="src\Utils.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="bin\libnlopt.dll">
+      <FileType>Document</FileType>
+    </CopyFileToFolders>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

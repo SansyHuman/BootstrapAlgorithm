@@ -35,25 +35,36 @@ double myvconstraint(const std::vector<double>& x, std::vector<double>& grad, vo
 
 int main()
 {
-    auto commutators = Eigen::Matrix4cd();
-    commutators << complex(), complex(0.0, -1.0), complex(), complex(),
-        complex(0.0, 1.0), complex(), complex(), complex(),
-        complex(), complex(), complex(), complex(0.0, -1.0),
-        complex(), complex(), complex(0.0, 1.0), complex();
+    Eigen::Matrix4cd commutators {
+        {complex(), complex(0.0, -1.0), complex(), complex()},
+        {complex(0.0, 1.0), complex(), complex(), complex()},
+        {complex(), complex(), complex(), complex(0.0, -1.0)},
+        {complex(), complex(), complex(0.0, 1.0), complex()}
+    };
     std::cout << commutators << std::endl;
     char basis[4] = { 'P', 'X', 'Q', 'Y' };
     MatrixInfo<4> info(basis, commutators);
 
     char basis2[4] = { 'A', 'B', 'C', 'D' };
-    auto coeff = Eigen::Matrix4cd();
-    coeff << complex(1.0, 0.0), complex(0.0, -1.0), complex(0.0, -1.0), complex(-1.0, 0.0),
-        complex(1.0, 0.0), complex(0.0, 1.0), complex(0.0, 1.0), complex(-1.0, 0.0),
-        complex(1.0, 0.0), complex(0.0, -1.0), complex(0.0, 1.0), complex(1.0, 0.0),
-        complex(1.0, 0.0), complex(0.0, 1.0), complex(0.0, -1.0), complex(1.0, 0.0);
+    Eigen::Matrix4cd coeff {
+        {complex(1.0, 0.0), complex(0.0, -1.0), complex(0.0, -1.0), complex(-1.0, 0.0)},
+        {complex(1.0, 0.0), complex(0.0, 1.0), complex(0.0, 1.0), complex(-1.0, 0.0)},
+        {complex(1.0, 0.0), complex(0.0, -1.0), complex(0.0, 1.0), complex(1.0, 0.0)},
+        {complex(1.0, 0.0), complex(0.0, 1.0), complex(0.0, -1.0), complex(1.0, 0.0)}
+    };
     coeff *= 0.5;
     info.AddBasis(basis2, coeff);
     auto coefB = info.GetCoefficients('B');
     auto commutator = info.Commutator('A', 'B');
+
+    std::cout << "[A, B] = " << commutator << std::endl;
+
+    auto trop = TraceOperator<4>(info, {
+        Trace({ 0.0, 1.0 }, "PP"), Trace({ 1.0, 0.5 }, "XX")
+    });
+    
+    std::cout << -trop << std::endl;
+    std::cout << trop << std::endl;
 
     nlopt::opt opt(nlopt::LD_MMA, 2);
     std::vector<double> lb(2);
