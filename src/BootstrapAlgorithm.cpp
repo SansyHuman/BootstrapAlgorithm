@@ -35,24 +35,24 @@ double myvconstraint(const std::vector<double>& x, std::vector<double>& grad, vo
 
 int main()
 {
-    Eigen::Matrix4cd commutators {
-        {complex(), complex(0.0, -1.0), complex(), complex()},
-        {complex(0.0, 1.0), complex(), complex(), complex()},
-        {complex(), complex(), complex(), complex(0.0, -1.0)},
-        {complex(), complex(), complex(0.0, 1.0), complex()}
-    };
+    Eigen::Matrix4cd commutators;
+    commutators << complex(), complex(0.0, -1.0), complex(), complex(),
+        complex(0.0, 1.0), complex(), complex(), complex(),
+        complex(), complex(), complex(), complex(0.0, -1.0),
+        complex(), complex(), complex(0.0, 1.0), complex();
+
     std::cout << commutators << std::endl;
     char basis[4] = { 'P', 'X', 'Q', 'Y' };
     MatrixInfo<4> info(basis, commutators);
 
     char basis2[4] = { 'A', 'B', 'C', 'D' };
-    Eigen::Matrix4cd coeff {
-        {complex(1.0, 0.0), complex(0.0, -1.0), complex(0.0, -1.0), complex(-1.0, 0.0)},
-        {complex(1.0, 0.0), complex(0.0, 1.0), complex(0.0, 1.0), complex(-1.0, 0.0)},
-        {complex(1.0, 0.0), complex(0.0, -1.0), complex(0.0, 1.0), complex(1.0, 0.0)},
-        {complex(1.0, 0.0), complex(0.0, 1.0), complex(0.0, -1.0), complex(1.0, 0.0)}
-    };
+    Eigen::Matrix4cd coeff;
+    coeff << complex(1.0, 0.0), complex(0.0, -1.0), complex(0.0, -1.0), complex(-1.0, 0.0),
+        complex(1.0, 0.0), complex(0.0, 1.0), complex(0.0, 1.0), complex(-1.0, 0.0),
+        complex(1.0, 0.0), complex(0.0, -1.0), complex(0.0, 1.0), complex(1.0, 0.0),
+        complex(1.0, 0.0), complex(0.0, 1.0), complex(0.0, -1.0), complex(1.0, 0.0);
     coeff *= 0.5;
+
     info.AddBasis(basis2, coeff);
     auto coefB = info.GetCoefficients('B');
     auto commutator = info.Commutator('A', 'B');
@@ -60,11 +60,22 @@ int main()
     std::cout << "[A, B] = " << commutator << std::endl;
 
     auto trop = TraceOperator<4>(info, {
-        Trace({ 0.0, 1.0 }, "PP"), Trace({ 1.0, 0.5 }, "XX")
+        Trace({ 1.0, 0.0 }, "PP"), Trace({ 1.0, 0.0 }, "XX")
     });
     
     std::cout << -trop << std::endl;
     std::cout << trop << std::endl;
+
+    auto trop2 = trop.Rewrite(basis2);
+
+    std::cout << trop2 << std::endl;
+
+    auto trop3 = TraceOperator<4>(info, {
+        Trace({0.0, 1.0}, "PX")
+        });
+    auto trop4 = trop.Commutator(trop3);
+
+    std::cout << trop4 << std::endl;
 
     nlopt::opt opt(nlopt::LD_MMA, 2);
     std::vector<double> lb(2);

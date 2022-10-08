@@ -7,6 +7,7 @@
 #include <complex>
 #include <Eigen/Dense>
 #include <Eigen/QR>
+#include <Eigen/LU>
 #include <string>
 #include <initializer_list>
 #include <unordered_map>
@@ -16,6 +17,8 @@
 using Matrix = char;
 using complex = std::complex<double>;
 
+template<uint32_t dimension> class TraceOperator;
+
 template<uint32_t dimension>
 class MatrixInfo
 {
@@ -23,6 +26,8 @@ private:
 	std::vector<std::array<Matrix, dimension>> matrices;
 	std::vector<Eigen::Matrix<complex, dimension, dimension>> coefficients;
 	Eigen::Matrix<complex, dimension, dimension> commutators;
+
+	friend class TraceOperator<dimension>;
 
 private:
 	static void MatrixDuplicateCheck(Matrix matrices[dimension])
@@ -75,7 +80,7 @@ public:
 		{
 			auto& ms = matrices[i];
 			bool contains = false;
-			size_t index = Contains(ms, matrix, &contains);
+			size_t index = Find(ms, matrix, &contains);
 			if(contains)
 			{
 				return Eigen::Matrix<complex, dimension, 1>(coefficients[i].row(index).transpose());
@@ -92,6 +97,45 @@ public:
 		auto t1 = Eigen::Matrix<complex, dimension, 1>(commutators * c2);
 		complex result = (c1.transpose() * t1)(0, 0);
 		return result;
+	}
+
+	size_t BasisIndex(Matrix matrices[dimension], bool* contains)
+	{
+		for(size_t i = 0; i < this->matrices.size(); i++)
+		{
+			std::array<Matrix, dimension>& basis = this->matrices[i];
+			bool match = true;
+			for(size_t j = 0; j < dimension; j++)
+			{
+				if(matrices[j] != basis[j])
+				{
+					match = false;
+					break;
+				}
+			}
+			if(match)
+			{
+				*contains = true;
+				return i;
+			}
+		}
+
+		*contains = false;
+		return -1;
+	}
+
+	bool Equals(MatrixInfo<dimension>& other)
+	{
+		if(this->matrices.size() != other.matrices.size())
+			return false;
+
+		for(size_t i = 0; i < this->matrices.size(); i++)
+		{
+			if(!ArrayEquals(this->matrices[i], other.matrices[i]))
+				return false;
+		}
+
+		return true;
 	}
 };
 
@@ -173,7 +217,116 @@ public:
 
 	TraceOperator<dimension> Rewrite(Matrix matrices[dimension])
 	{
+		bool contains = false;
+		size_t index = this->matInfo.BasisIndex(matrices, &contains);
+		assert(contains);
 
+		Eigen::Matrix<complex, dimension, dimension> table(this->matInfo.coefficients[index].inverse());
+
+		std::vector<Trace> inProcess = this->ops;
+		std::unordered_map<std::basic_string<Matrix>, complex> finalResult;
+		while(inProcess.size() > 0)
+		{
+			std::vector<Trace> result(0);
+
+			for(auto& tr : inProcess)
+			{
+				bool toBeConverted = false;
+				size_t convertIndex = -1;
+
+				for(size_t i = 0; i < tr.Matrices.size(); i++)
+				{
+					bool contains = false;
+					size_t index = Find<Matrix, dimension>(&matrices[0], tr.Matrices.at(i), &contains);
+					if(!contains)
+					{
+						toBeConverted = true;
+						convertIndex = i;
+						break;
+					}
+				}
+
+				if(!toBeConverted)
+				{
+					if(finalResult.contains(tr.Matrices))
+					{
+						finalResult[tr.Matrices] += tr.Coefficient;
+					}
+					else
+					{
+						finalResult.insert(std::pair(tr.Matrices, tr.Coefficient));
+					}
+				}
+				else
+				{
+					size_t pos = convertIndex;
+					auto coef = Eigen::Matrix<complex, 1, dimension>(
+						this->matInfo.GetCoefficients(tr.Matrices.at(convertIndex)).transpose()
+						* table
+					);
+
+					for(size_t i = 0; i < dimension; i++)
+					{
+						Matrix m = matrices[i];
+						result.push_back(Trace(
+							tr.Coefficient * coef(0, i),
+							tr.Matrices.substr(0, pos) + m + tr.Matrices.substr(pos + 1)
+						));
+					}
+				}
+			}
+
+			inProcess = result;
+		}
+
+		std::vector<Trace> finalTr;
+		for(auto& tr : finalResult)
+		{
+			finalTr.push_back(Trace(tr.second, tr.first));
+		}
+
+		return TraceOperator<dimension>(this->matInfo, finalTr);
+	}
+
+	TraceOperator<dimension> Commutator(TraceOperator<dimension>& other)
+	{
+		assert(this->matInfo.Equals(other.matInfo));
+
+		std::vector<Trace> res(0);
+
+		for(auto& tr1 : this->ops)
+		{
+			for(auto& tr2 : other.ops)
+			{
+				for(size_t i = 0; i < tr1.Matrices.size(); i++)
+				{
+					Matrix m1 = tr1.Matrices.at(i);
+					for(size_t j = 0; j < tr2.Matrices.size(); j++)
+					{
+						Matrix m2 = tr2.Matrices.at(j);
+						for(auto& o1 : tr1.Matrices.substr(0, i))
+						{
+							for(auto& o2 : tr1.Matrices.substr(i + 1))
+							{
+								assert(std::abs(this->matInfo.Commutator(o1, o2)) < 1e-8);
+							}
+						}
+
+						std::basic_string<Matrix> s =
+							tr2.Matrices.substr(0, j) +
+							tr1.Matrices.substr(i + 1) +
+							tr1.Matrices.substr(0, i) +
+							tr2.Matrices.substr(j + 1);
+						res.push_back(Trace(
+							tr1.Coefficient * tr2.Coefficient * this->matInfo.Commutator(m1, m2),
+							s
+						));
+					}
+				}
+			}
+		}
+
+		return TraceOperator<dimension>(this->matInfo, res);
 	}
 };
 
