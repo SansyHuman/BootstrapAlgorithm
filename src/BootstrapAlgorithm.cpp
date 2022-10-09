@@ -90,6 +90,9 @@ int main()
     std::cout << "Expand" << std::endl << expand << std::endl << std::endl;
     std::cout << "RealExpect" << std::endl << ExpectReal(Eigen::MatrixXcd(coeff)) << std::endl << std::endl;
 
+    std::cout << "CoeffCoeff" << std::endl << HStack(coeff, coeff) << std::endl << std::endl;
+    std::cout << "Coeff/Coeff" << std::endl << VStack(coeff, coeff) << std::endl << std::endl;
+
     info.AddBasis(basis2, coeff);
     auto coefB = info.GetCoefficients('B');
     auto commutator = info.Commutator('A', 'B');
@@ -113,6 +116,10 @@ int main()
     auto trop4 = trop.Commutator(trop3);
 
     std::cout << "[H, trPX] = " << trop4 << std::endl;
+
+    LinearSolution linSol;
+
+    QuadraticSolution quadSol(linSol);
 
     nlopt::opt opt(nlopt::LD_MMA, 2);
     std::vector<double> lb(2);

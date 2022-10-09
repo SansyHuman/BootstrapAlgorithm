@@ -126,7 +126,7 @@ namespace Bootstrap
 			return -1;
 		}
 
-		bool Equals(MatrixInfo<dimension>& other)
+		bool Equals(const MatrixInfo<dimension>& other)
 		{
 			if(this->matrices.size() != other.matrices.size())
 				return false;
@@ -150,7 +150,7 @@ namespace Bootstrap
 			: Coefficient({ 0.0, 0.0 }), Matrices("")
 		{}
 
-		Trace(complex coeff, std::basic_string<Matrix> mats)
+		Trace(const complex& coeff, const std::basic_string<Matrix>& mats)
 			: Coefficient(coeff), Matrices(mats)
 		{
 
@@ -172,7 +172,7 @@ namespace Bootstrap
 		friend std::ostream& operator<<<dimension>(std::ostream&, const TraceOperator<dimension>&);
 
 	public:
-		TraceOperator(MatrixInfo<dimension>& matInfo, const std::vector<Trace>& ops)
+		TraceOperator(const MatrixInfo<dimension>& matInfo, const std::vector<Trace>& ops)
 			: matInfo(matInfo), ops(0)
 		{
 			auto coef = std::unordered_map<std::basic_string<Matrix>, complex>();
@@ -193,17 +193,6 @@ namespace Bootstrap
 				if(std::abs(s.second) > 1e-8)
 					this->ops.push_back(Trace(s.second, s.first));
 			}
-		}
-
-		TraceOperator(MatrixInfo<dimension>& matInfo, std::vector<Trace>&& ops)
-			: TraceOperator(matInfo, ops)
-		{
-
-		}
-
-		TraceOperator(MatrixInfo<dimension>& matInfo, const std::initializer_list<Trace>& ops)
-			: TraceOperator(matInfo, std::vector<Trace>{ops})
-		{
 		}
 
 		TraceOperator<dimension> operator-()
@@ -290,7 +279,7 @@ namespace Bootstrap
 			return TraceOperator<dimension>(this->matInfo, finalTr);
 		}
 
-		TraceOperator<dimension> Commutator(TraceOperator<dimension>& other)
+		TraceOperator<dimension> Commutator(const TraceOperator<dimension>& other)
 		{
 			assert(this->matInfo.Equals(other.matInfo));
 

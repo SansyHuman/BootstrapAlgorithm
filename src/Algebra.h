@@ -7,7 +7,7 @@
 
 namespace Bootstrap
 {
-	Eigen::MatrixXcd NullSpace(Eigen::MatrixXcd& mat)
+	Eigen::MatrixXcd NullSpace(const Eigen::MatrixXcd& mat)
 	{
 		auto qr = mat.transpose().colPivHouseholderQr();
 
@@ -20,12 +20,7 @@ namespace Bootstrap
 		return null;
 	}
 
-	Eigen::MatrixXcd NullSpace(Eigen::MatrixXcd&& mat)
-	{
-		return NullSpace(static_cast<Eigen::MatrixXcd&>(mat));
-	}
-
-	Eigen::MatrixXcd RowSpace(Eigen::MatrixXcd& mat)
+	Eigen::MatrixXcd RowSpace(const Eigen::MatrixXcd& mat)
 	{
 		auto qr = mat.transpose().colPivHouseholderQr();
 
@@ -36,11 +31,5 @@ namespace Bootstrap
 		assert(row.cols() == mat.cols());
 
 		return row;
-	}
-
-
-	Eigen::MatrixXcd RowSpace(Eigen::MatrixXcd&& mat)
-	{
-		return RowSpace(static_cast<Eigen::MatrixXcd&>(mat));
 	}
 }

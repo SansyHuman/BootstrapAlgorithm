@@ -8,7 +8,7 @@
 
 namespace Bootstrap
 {
-	Eigen::MatrixXcd Expand(Eigen::MatrixXcd& mat, Eigen::Index row, Eigen::Index col)
+	Eigen::MatrixXcd Expand(const Eigen::MatrixXcd& mat, Eigen::Index row, Eigen::Index col)
 	{
 		assert(mat.rows() <= row && mat.cols() <= col);
 
@@ -18,12 +18,7 @@ namespace Bootstrap
 		return res;
 	}
 
-	Eigen::MatrixXcd Expand(Eigen::MatrixXcd&& mat, Eigen::Index row, Eigen::Index col)
-	{
-		return Expand(static_cast<Eigen::MatrixXcd&>(mat), row, col);
-	}
-
-	Eigen::MatrixXcd ExpectReal(Eigen::MatrixXcd& data)
+	Eigen::MatrixXcd ExpectReal(const Eigen::MatrixXcd& data)
 	{
 		int cntImagNonzero = 0;
 		int cntRealNonzero = 0;
@@ -43,6 +38,7 @@ namespace Bootstrap
 		if(cntImagNonzero == 0)
 		{
 			Eigen::MatrixXcd result(data.rows(), data.cols());
+			result.setZero();
 			for(Eigen::Index i = 0; i < data.rows(); i++)
 			{
 				for(Eigen::Index j = 0; j < data.cols(); j++)
@@ -57,6 +53,7 @@ namespace Bootstrap
 		if(cntRealNonzero == 0)
 		{
 			Eigen::MatrixXcd result(data.rows(), data.cols());
+			result.setZero();
 			for(Eigen::Index i = 0; i < data.rows(); i++)
 			{
 				for(Eigen::Index j = 0; j < data.cols(); j++)
@@ -71,11 +68,6 @@ namespace Bootstrap
 		std::cerr << "WARNING: there are complex entries in the data." << std::endl;
 
 		return Eigen::MatrixXcd(data);
-	}
-
-	Eigen::MatrixXcd ExpectReal(Eigen::MatrixXcd&& data)
-	{
-		return ExpectReal(static_cast<Eigen::MatrixXcd&>(data));
 	}
 
 	class LinearSolution
@@ -117,15 +109,10 @@ namespace Bootstrap
 			return res;
 		}
 
-		void AddConstraints(Eigen::MatrixXcd& constraints)
+		void AddConstraints(const Eigen::MatrixXcd& constraints)
 		{
 			assert(constraints.cols() == NumVariables());
 			this->constraints = VStack(this->constraints, ExpectReal(constraints));
-		}
-
-		void AddConstraints(Eigen::MatrixXcd&& constraints)
-		{
-			AddConstraints(static_cast<Eigen::MatrixXcd&>(constraints));
 		}
 
 		void SolveConstraints()
@@ -139,17 +126,12 @@ namespace Bootstrap
 			this->constraints.setZero();
 		}
 
-		Eigen::RowVectorXcd GetSolution(std::basic_string<Matrix>& key)
+		Eigen::RowVectorXcd GetSolution(const std::basic_string<Matrix>& key)
 		{
 			return Eigen::RowVectorXcd(this->matrix.row(this->index.at(key)));
 		}
 
-		Eigen::RowVectorXcd GetSolution(std::basic_string<Matrix>&& key)
-		{
-			return GetSolution(static_cast<std::basic_string<Matrix>&>(key));
-		}
-
-		void AddSolution(std::basic_string<Matrix>& key, Eigen::RowVectorXcd& data)
+		void AddSolution(const std::basic_string<Matrix>& key, const Eigen::RowVectorXcd& data)
 		{
 			assert(data.cols() == NumVariables());
 			assert(!(this->index.contains(key)));
@@ -157,20 +139,135 @@ namespace Bootstrap
 			this->index.insert(std::pair(key, NumOperators()));
 			this->matrix = VStack(this->matrix, ExpectReal(data));
 		}
+	};
 
-		void AddSolution(std::basic_string<Matrix>&& key, Eigen::RowVectorXcd& data)
+	struct OperatorPair
+	{
+		std::basic_string<Matrix> Op1;
+		std::basic_string<Matrix> Op2;
+
+		OperatorPair()
+			: Op1(""), Op2("")
 		{
-			AddSolution(static_cast<std::basic_string<Matrix>&>(key), data);
+
 		}
 
-		void AddSolution(std::basic_string<Matrix>& key, Eigen::RowVectorXcd&& data)
+		OperatorPair(const std::basic_string<Matrix>& op1, const std::basic_string<Matrix>& op2)
+			: Op1(op1), Op2(op2)
 		{
-			AddSolution(key, static_cast<Eigen::RowVectorXcd&>(data));
+
 		}
 
-		void AddSolution(std::basic_string<Matrix>&& key, Eigen::RowVectorXcd&& data)
+		class hash
 		{
-			AddSolution(static_cast<std::basic_string<Matrix>&>(key), static_cast<Eigen::RowVectorXcd&>(data));
+		public:
+			size_t operator()(const Bootstrap::OperatorPair& p) const
+			{
+				using std::hash;
+				return hash<std::string>()(p.Op1) * hash<std::string>()(p.Op2);
+			}
+		};
+	};
+
+	struct QuadraticOperator
+	{
+		complex Coefficient;
+		OperatorPair Ops;
+
+		QuadraticOperator()
+			: Coefficient(), Ops()
+		{
+
+		}
+
+		QuadraticOperator(const complex& coeff, const OperatorPair& ops)
+			: Coefficient(coeff), Ops(ops)
+		{
+
+		}
+	};
+
+	bool operator==(const OperatorPair& p1, const OperatorPair& p2)
+	{
+		return (p1.Op1 == p2.Op1 && p1.Op2 == p2.Op2) ||
+			(p1.Op1 == p2.Op2 && p1.Op2 == p2.Op1);
+	}
+
+	class QuadraticSolution
+	{
+	private:
+		LinearSolution sol;
+		std::unordered_map<OperatorPair, Eigen::Index, OperatorPair::hash> index;
+		Eigen::MatrixXcd param1;
+		Eigen::MatrixXcd param2;
+		Eigen::MatrixXcd matrixLine;
+		Eigen::MatrixXcd matrixQuad;
+
+	public:
+		QuadraticSolution(LinearSolution& sol)
+			: sol(sol), index(), param1(0, sol.NumVariables()),
+			param2(0, sol.NumVariables()), matrixLine(0, sol.NumVariables()),
+			matrixQuad(0, 0)
+		{
+
+		}
+
+		QuadraticSolution(LinearSolution&& sol)
+			: QuadraticSolution(static_cast<LinearSolution&>(sol))
+		{
+
+		}
+
+		Eigen::Index NumConstraints()
+		{
+			assert(this->matrixQuad.rows() == this->matrixLine.rows());
+			return this->matrixQuad.rows();
+		}
+
+		Eigen::Index GetVariable(const std::basic_string<Matrix>& op1, const std::basic_string<Matrix>& op2)
+		{
+			auto pair = OperatorPair(op1, op2);
+			if(this->index.contains(pair))
+			{
+				return this->index.at(pair);
+			}
+
+			Eigen::Index ind = this->index.size();
+			this->param1 = VStack(this->param1, this->sol.GetSolution(op1));
+			this->param2 = VStack(this->param2, this->sol.GetSolution(op2));
+			this->matrixQuad = Expand(this->matrixQuad, this->matrixQuad.rows(), ind + 1);
+
+			return ind;
+		}
+
+		void AddConstraint(const std::vector<QuadraticOperator>& quad, const Eigen::RowVectorXcd& linear)
+		{
+			this->matrixLine = VStack(this->matrixLine, ExpectReal(linear));
+
+			Eigen::RowVectorXcd res(1, this->matrixQuad.cols());
+			res.setZero();
+			for(const auto& e : quad)
+			{
+				res(0, GetVariable(e.Ops.Op1, e.Ops.Op2)) = e.Coefficient;
+			}
+
+			this->matrixQuad = VStack(this->matrixQuad, ExpectReal(res));
+		}
+
+		void ReduceConstraints()
+		{
+			assert(this->matrixQuad.cols() == this->index.size());
+			assert(this->matrixLine.cols() == this->sol.NumVariables());
+
+			if(this->matrixQuad.rows() == 0)
+				return;
+
+			Eigen::MatrixXcd mat(HStack(this->matrixQuad, this->matrixLine));
+			mat = RowSpace(mat);
+			this->matrixQuad = mat.block(0, 0, mat.rows(), this->index.size());
+			this->matrixLine = mat.block(0, this->index.size(), mat.rows(), mat.cols() - this->index.size());
+
+			assert(this->matrixLine.cols() == this->sol.NumVariables());
 		}
 	};
 }
