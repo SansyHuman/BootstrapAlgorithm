@@ -84,6 +84,11 @@ namespace Bootstrap
 
 		}
 
+		bool Contains(const std::basic_string<Matrix>& op)
+		{
+			return this->index.contains(op);
+		}
+
 		Eigen::Index NumVariables()
 		{
 			assert(this->matrix.cols() == this->constraints.cols());
@@ -268,6 +273,107 @@ namespace Bootstrap
 			this->matrixLine = mat.block(0, this->index.size(), mat.rows(), mat.cols() - this->index.size());
 
 			assert(this->matrixLine.cols() == this->sol.NumVariables());
+		}
+	};
+
+	using ConjugateFunc = std::basic_string<Matrix>(*)(const std::basic_string<Matrix>&);
+
+	template<uint32_t dimension>
+	class Solver
+	{
+	private:
+		TraceOperator<dimension> hamil;
+		std::vector<Trace> gauge;
+		Matrix mats[dimension];
+		ConjugateFunc conj;
+		LinearSolution solution;
+
+	public:
+		Solver(
+			const TraceOperator<dimension>& hamil,
+			const std::vector<Trace>& gauge,
+			Matrix mats[dimension],
+			ConjugateFunc conj
+		)
+			: hamil(hamil), gauge(gauge), conj(conj), solution()
+		{
+			for(size_t i = 0; i < dimension; i++)
+			{
+				this->mats[i] = mats[i];
+			}
+		}
+
+	private:
+		bool SolveHamiltonianConstraint(
+			const std::basic_string<Matrix>& op,
+			Eigen::RowVectorXcd* result
+		)
+		{
+			std::vector<Trace> ops(1);
+			ops[0] = Trace(complex(1.0, 0.0), op);
+			TraceOperator<dimension> commutator = this->hamil.Commutator(
+				TraceOperator<dimension>(
+				this->hamil.matInfo, ops
+			)).Rewrite(this->mats);
+
+			Eigen::RowVectorXcd res(1, this->solution.NumVariables());
+			double coef = 0.0;
+
+			for(auto& tr : commutator.ops)
+			{
+				auto& c = tr.Coefficient;
+				auto& s = tr.Matrices;
+				if(tr.Matrices == op)
+					coef += c.real();
+				else
+				{
+					assert(s.size() > op.size());
+					if(!(this->solution.Contains(s)))
+					{
+						return false;
+					}
+
+					res += c.real() * this->solution.GetSolution(s);
+				}
+			}
+
+			if(std::abs(coef) < 1e-8)
+			{
+				this->solution.AddConstraints(res);
+				return false;
+			}
+
+			*result = (-1.0 / coef) * res;
+			return true;
+		}
+
+		bool ImposeGaugeConstraint(const std::basic_string<Matrix>& op)
+		{
+			Eigen::RowVectorXcd res(1, this->solution.NumVariables());
+			
+			for(auto& tr : this->gauge)
+			{
+				auto& c = tr.Coefficient;
+				auto& s = tr.Matrices;
+
+				TraceOperator<dimension> opNew = TraceOperator<dimension>(
+					this->hamil.matInfo, s + op
+					).Rewrite(this->mats);
+
+				for(auto& ntr : opNew.ops)
+				{
+					auto& d = ntr.Coefficient;
+					auto& t = ntr.Matrices;
+
+					if(!(this->solution.Contains(t)))
+						return false;
+					
+					res += c * d * this->solution.GetSolution(t);
+				}
+			}
+
+			this->solution.AddConstraints(res);
+			return true;
 		}
 	};
 }

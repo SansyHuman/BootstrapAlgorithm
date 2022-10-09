@@ -121,6 +121,22 @@ int main()
 
     QuadraticSolution quadSol(linSol);
 
+    Solver<4> solver(trop, std::vector<Trace>(), basis2, [](const std::string& op) {
+        std::string res = "";
+        for(size_t i = 0; i < op.size(); i++)
+        {
+            if(op.at(i) == 'A')
+                res += 'B';
+            else if(op.at(i) == 'B')
+                res += 'A';
+            else
+                assert(false);
+        }
+        std::reverse(res.begin(), res.end());
+        return res;
+        }
+    );
+
     nlopt::opt opt(nlopt::LD_MMA, 2);
     std::vector<double> lb(2);
     lb[0] = -HUGE_VAL; lb[1] = 0;

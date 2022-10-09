@@ -163,6 +163,9 @@ namespace Bootstrap
 	}
 
 	template<uint32_t dimension>
+	class Solver;
+
+	template<uint32_t dimension>
 	class TraceOperator
 	{
 	private:
@@ -170,6 +173,7 @@ namespace Bootstrap
 		std::vector<Trace> ops;
 
 		friend std::ostream& operator<<<dimension>(std::ostream&, const TraceOperator<dimension>&);
+		friend class Bootstrap::Solver<dimension>;
 
 	public:
 		TraceOperator(const MatrixInfo<dimension>& matInfo, const std::vector<Trace>& ops)
