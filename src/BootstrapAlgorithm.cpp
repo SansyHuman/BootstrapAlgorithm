@@ -6,8 +6,13 @@
 #include <nlopt.hpp>
 #include <complex>
 #include <Eigen/Dense>
+#include <Eigen/QR>
 
 #include "Trace.h"
+#include "Algebra.h"
+#include "Solver.h"
+
+using namespace Bootstrap;
 
 typedef struct {
     double a, b;
@@ -35,13 +40,39 @@ double myvconstraint(const std::vector<double>& x, std::vector<double>& grad, vo
 
 int main()
 {
+    Eigen::MatrixXd cm(4, 6);
+    cm << 2.5, 3.2, 0.0, 0.0, 0.0, 0.5,
+        0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 2.4, 0.0,
+        1.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+
+    auto qr = cm.colPivHouseholderQr();
+    Eigen::MatrixXd q(qr.householderQ());
+    Eigen::MatrixXd r(qr.matrixR().topLeftCorner(qr.rows(), qr.cols()).template triangularView<Eigen::UpLoType::Upper>());
+    Eigen::MatrixXd p(qr.colsPermutation());
+
+    std::cout << "A" << std::endl << cm << std::endl << std::endl;
+    std::cout << "Q" << std::endl << q << std::endl << std::endl;
+    std::cout << "R" << std::endl << r << std::endl << std::endl;
+    std::cout << "AP" << std::endl << cm * p << std::endl << std::endl;
+    std::cout << "QR" << std::endl << q * r << std::endl << std::endl;
+    std::cout << "dim(ker(A)): " << qr.dimensionOfKernel() << std::endl;
+
+    Eigen::MatrixXcd cmc(cm.cast<complex>());
+
+    auto nullspace = NullSpace(cmc);
+    auto rowspace = RowSpace(cmc);
+
+    std::cout << "ker(A)" << std::endl << nullspace << std::endl << std::endl;
+    std::cout << "Aker(A)" << std::endl << cmc * nullspace << std::endl << std::endl;
+    std::cout << "row(A)" << std::endl << rowspace << std::endl << std::endl;
+
     Eigen::Matrix4cd commutators;
     commutators << complex(), complex(0.0, -1.0), complex(), complex(),
         complex(0.0, 1.0), complex(), complex(), complex(),
         complex(), complex(), complex(), complex(0.0, -1.0),
         complex(), complex(), complex(0.0, 1.0), complex();
 
-    std::cout << commutators << std::endl;
     char basis[4] = { 'P', 'X', 'Q', 'Y' };
     MatrixInfo<4> info(basis, commutators);
 
@@ -53,6 +84,12 @@ int main()
         complex(1.0, 0.0), complex(0.0, 1.0), complex(0.0, -1.0), complex(1.0, 0.0);
     coeff *= 0.5;
 
+    Eigen::MatrixXcd expand = Expand(Eigen::MatrixXcd(coeff), 5, 6);
+
+    std::cout << "Coeff" << std::endl << coeff << std::endl << std::endl;
+    std::cout << "Expand" << std::endl << expand << std::endl << std::endl;
+    std::cout << "RealExpect" << std::endl << ExpectReal(Eigen::MatrixXcd(coeff)) << std::endl << std::endl;
+
     info.AddBasis(basis2, coeff);
     auto coefB = info.GetCoefficients('B');
     auto commutator = info.Commutator('A', 'B');
@@ -63,19 +100,19 @@ int main()
         Trace({ 1.0, 0.0 }, "PP"), Trace({ 1.0, 0.0 }, "XX")
     });
     
-    std::cout << -trop << std::endl;
-    std::cout << trop << std::endl;
+    std::cout << "-H = " << -trop << std::endl;
+    std::cout << "H = " << trop << std::endl;
 
     auto trop2 = trop.Rewrite(basis2);
 
-    std::cout << trop2 << std::endl;
+    std::cout << "H = " << trop2 << std::endl;
 
     auto trop3 = TraceOperator<4>(info, {
         Trace({0.0, 1.0}, "PX")
         });
     auto trop4 = trop.Commutator(trop3);
 
-    std::cout << trop4 << std::endl;
+    std::cout << "[H, trPX] = " << trop4 << std::endl;
 
     nlopt::opt opt(nlopt::LD_MMA, 2);
     std::vector<double> lb(2);
