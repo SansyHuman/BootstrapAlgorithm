@@ -29,9 +29,9 @@ namespace Bootstrap
 			for(Eigen::Index j = 0; j < data.cols(); j++)
 			{
 				auto& e = data(i, j);
-				if(e.imag() != 0.0)
+				if(std::abs(e.imag()) > 1e-8)
 					cntImagNonzero++;
-				if(e.real() != 0.0)
+				if(std::abs(e.real()) > 1e-8)
 					cntRealNonzero++;
 			}
 		}
@@ -241,6 +241,7 @@ namespace Bootstrap
 			}
 
 			Eigen::Index ind = this->index.size();
+			this->index.insert(std::pair(OperatorPair(op1, op2), ind));
 			this->param1 = VStack(this->param1, this->sol->GetSolution(op1));
 			this->param2 = VStack(this->param2, this->sol->GetSolution(op2));
 			this->matrixQuad = Expand(this->matrixQuad, this->matrixQuad.rows(), ind + 1);
@@ -256,6 +257,8 @@ namespace Bootstrap
 			res.setZero();
 			for(const auto& e : quad)
 			{
+				Eigen::Index columIndex = GetVariable(e.Ops.Op1, e.Ops.Op2);
+				res.conservativeResize(Eigen::NoChange, this->matrixQuad.cols());
 				res(0, GetVariable(e.Ops.Op1, e.Ops.Op2)) = e.Coefficient;
 			}
 
@@ -317,7 +320,7 @@ namespace Bootstrap
 		{
 			std::vector<Trace> ops(1);
 			ops[0] = Trace(complex(1.0, 0.0), op);
-			TraceOperator<dimension> commutator = this->hamil.Commutator(
+			TraceOperator<dimension> commutator = this->hamil->Commutator(
 				TraceOperator<dimension>(
 				*(this->hamil->matInfo), ops
 			)).Rewrite(this->mats);
@@ -363,7 +366,7 @@ namespace Bootstrap
 				auto& s = tr.Matrices;
 
 				TraceOperator<dimension> opNew = TraceOperator<dimension>(
-					*(this->hamil->matInfo), s + op
+					*(this->hamil->matInfo), { Trace(complex(1.0), s + op) }
 					).Rewrite(this->mats);
 
 				for(auto& ntr : opNew.ops)
