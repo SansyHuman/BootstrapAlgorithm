@@ -210,6 +210,11 @@ namespace Bootstrap
 			return TraceOperator<dimension>(*(this->matInfo), newOps);
 		}
 
+		const std::vector<Trace>& Components() const
+		{
+			return this->ops;
+		}
+
 		TraceOperator<dimension> Rewrite(Matrix matrices[dimension])
 		{
 			bool contains = false;

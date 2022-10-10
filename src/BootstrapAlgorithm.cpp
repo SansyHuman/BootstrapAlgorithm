@@ -11,6 +11,7 @@
 #include "Trace.h"
 #include "Algebra.h"
 #include "Solver.h"
+#include "Optimize.h"
 
 using namespace Bootstrap;
 
@@ -84,11 +85,17 @@ int main()
     std::vector<std::pair<size_t, Eigen::MatrixXcd>> tables;
     QuadraticSolution cons;
 
-    solver.TableWithConstrinats(4,
+    solver.TableWithConstrinats(3,
         [](const std::string& s) { return (int)s.size() % 2; },
         &tables,
         &cons
     );
+
+    auto hamilRewrite = hamil.Rewrite(useBasis);
+
+    auto hamilVec = OperatorToVector(cons.Solution(), hamilRewrite);
+
+    std::cout << hamilVec << std::endl;
 
     nlopt::opt opt(nlopt::LD_MMA, 2);
     std::vector<double> lb(2);

@@ -32,6 +32,9 @@
     <ClInclude Include="src\Solver.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="src\Optimize.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="bin\libnlopt.dll">

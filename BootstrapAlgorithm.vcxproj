@@ -167,6 +167,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Algebra.h" />
+    <ClInclude Include="src\Optimize.h" />
     <ClInclude Include="src\Solver.h" />
     <ClInclude Include="src\Trace.h" />
     <ClInclude Include="src\Utils.h" />

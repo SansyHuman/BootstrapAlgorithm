@@ -21,54 +21,17 @@ namespace Bootstrap
 
 	Eigen::MatrixXcd ExpectReal(const Eigen::MatrixXcd& data)
 	{
-		int cntImagNonzero = 0;
-		int cntRealNonzero = 0;
+		auto imnz = (data.imag().array() != 0).count();
+		auto renz = (data.real().array() != 0).count();
 
-		for(Eigen::Index i = 0; i < data.rows(); i++)
-		{
-			for(Eigen::Index j = 0; j < data.cols(); j++)
-			{
-				auto& e = data(i, j);
-				if(std::abs(e.imag()) > 1e-8)
-					cntImagNonzero++;
-				if(std::abs(e.real()) > 1e-8)
-					cntRealNonzero++;
-			}
-		}
-
-		if(cntImagNonzero == 0)
-		{
-			Eigen::MatrixXcd result(data.rows(), data.cols());
-			result.setZero();
-			for(Eigen::Index i = 0; i < data.rows(); i++)
-			{
-				for(Eigen::Index j = 0; j < data.cols(); j++)
-				{
-					result(i, j) = complex(data(i, j).real(), 0.0);
-				}
-			}
-
-			return result;
-		}
-
-		if(cntRealNonzero == 0)
-		{
-			Eigen::MatrixXcd result(data.rows(), data.cols());
-			result.setZero();
-			for(Eigen::Index i = 0; i < data.rows(); i++)
-			{
-				for(Eigen::Index j = 0; j < data.cols(); j++)
-				{
-					result(i, j) = complex(data(i, j).imag(), 0.0);
-				}
-			}
-
-			return result;
-		}
+		if(imnz == 0)
+			return data.real();
+		if(renz == 0)
+			return data.imag();
 
 		std::cerr << "WARNING: there are complex entries in the data." << std::endl;
 
-		return Eigen::MatrixXcd(data);
+		return data;
 	}
 
 	class LinearSolution
@@ -226,6 +189,12 @@ namespace Bootstrap
 
 		}
 
+
+		LinearSolution& Solution()
+		{
+			return *sol;
+		}
+
 		Eigen::Index NumConstraints()
 		{
 			assert(this->matrixQuad.rows() == this->matrixLine.rows());
@@ -253,13 +222,18 @@ namespace Bootstrap
 		{
 			this->matrixLine = VStack(this->matrixLine, ExpectReal(linear));
 
-			Eigen::RowVectorXcd res(1, this->matrixQuad.cols());
-			res.setZero();
+			std::unordered_map<Eigen::Index, complex> data;
 			for(const auto& e : quad)
 			{
-				Eigen::Index columIndex = GetVariable(e.Ops.Op1, e.Ops.Op2);
-				res.conservativeResize(Eigen::NoChange, this->matrixQuad.cols());
-				res(0, GetVariable(e.Ops.Op1, e.Ops.Op2)) = e.Coefficient;
+				Eigen::Index columnIndex = GetVariable(e.Ops.Op1, e.Ops.Op2);
+				data.insert(std::pair(columnIndex, e.Coefficient));
+			}
+
+			Eigen::RowVectorXcd res(1, this->matrixQuad.cols());
+			res.setZero();
+			for(const auto& e : data)
+			{
+				res(0, e.first) = e.second;
 			}
 
 			this->matrixQuad = VStack(this->matrixQuad, ExpectReal(res));
@@ -275,6 +249,7 @@ namespace Bootstrap
 
 			Eigen::MatrixXcd mat(HStack(this->matrixQuad, this->matrixLine));
 			mat = RowSpace(mat);
+
 			this->matrixQuad = mat.block(0, 0, mat.rows(), this->index.size());
 			this->matrixLine = mat.block(0, this->index.size(), mat.rows(), mat.cols() - this->index.size());
 
@@ -326,6 +301,7 @@ namespace Bootstrap
 			)).Rewrite(this->mats);
 
 			Eigen::RowVectorXcd res(1, this->solution.NumVariables());
+			res.setZero();
 			double coef = 0.0;
 
 			for(auto& tr : commutator.ops)
@@ -359,6 +335,7 @@ namespace Bootstrap
 		bool ImposeGaugeConstraint(const std::basic_string<Matrix>& op)
 		{
 			Eigen::RowVectorXcd res(1, this->solution.NumVariables());
+			res.setZero();
 			
 			for(auto& tr : this->gauge)
 			{
@@ -460,6 +437,7 @@ namespace Bootstrap
 				assert(!(this->solution.Contains(op)));
 
 				Eigen::RowVectorXcd res;
+				res.setZero();
 				if(this->solution.Contains(this->conj(op)))
 				{
 					res = this->solution.GetSolution(this->conj(op));
@@ -487,6 +465,7 @@ namespace Bootstrap
 				auto& op = operators[i];
 
 				Eigen::RowVectorXcd res;
+				res.setZero();
 				bool solvable = this->CyclicityConstraint(op, nullptr, &res, true);
 				if(solvable)
 				{
@@ -504,6 +483,7 @@ namespace Bootstrap
 
 				std::vector<QuadraticOperator> quad;
 				Eigen::RowVectorXcd lin;
+				lin.setZero();
 				bool solvable = this->CyclicityConstraint(op, &quad, &lin);
 				if(solvable && quad.size() > 0)
 				{
@@ -577,7 +557,7 @@ namespace Bootstrap
 					}
 				}
 
-				tmpTables.push_back(std::pair(d, std::move(opCombs)));
+				tmpTables.push_back(std::pair(len, std::move(opCombs)));
 			}
 
 			std::vector<std::basic_string<Matrix>> ops;
