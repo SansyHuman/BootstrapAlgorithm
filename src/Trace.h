@@ -169,7 +169,7 @@ namespace Bootstrap
 	class TraceOperator
 	{
 	private:
-		MatrixInfo<dimension> matInfo;
+		MatrixInfo<dimension>* matInfo;
 		std::vector<Trace> ops;
 
 		friend std::ostream& operator<<<dimension>(std::ostream&, const TraceOperator<dimension>&);
@@ -177,7 +177,7 @@ namespace Bootstrap
 
 	public:
 		TraceOperator(const MatrixInfo<dimension>& matInfo, const std::vector<Trace>& ops)
-			: matInfo(matInfo), ops(0)
+			: matInfo(const_cast<MatrixInfo<dimension>*>(&matInfo)), ops(0)
 		{
 			auto coef = std::unordered_map<std::basic_string<Matrix>, complex>();
 			for(auto& op : ops)
@@ -207,16 +207,16 @@ namespace Bootstrap
 				op.Coefficient = -op.Coefficient;
 			}
 
-			return TraceOperator<dimension>(this->matInfo, newOps);
+			return TraceOperator<dimension>(*(this->matInfo), newOps);
 		}
 
 		TraceOperator<dimension> Rewrite(Matrix matrices[dimension])
 		{
 			bool contains = false;
-			size_t index = this->matInfo.BasisIndex(matrices, &contains);
+			size_t index = this->matInfo->BasisIndex(matrices, &contains);
 			assert(contains);
 
-			Eigen::Matrix<complex, dimension, dimension> table(this->matInfo.coefficients[index].inverse());
+			Eigen::Matrix<complex, dimension, dimension> table(this->matInfo->coefficients[index].inverse());
 
 			std::vector<Trace> inProcess = this->ops;
 			std::unordered_map<std::basic_string<Matrix>, complex> finalResult;
@@ -256,7 +256,7 @@ namespace Bootstrap
 					{
 						size_t pos = convertIndex;
 						auto coef = Eigen::Matrix<complex, 1, dimension>(
-							this->matInfo.GetCoefficients(tr.Matrices.at(convertIndex)).transpose()
+							this->matInfo->GetCoefficients(tr.Matrices.at(convertIndex)).transpose()
 							* table
 							);
 
@@ -280,12 +280,12 @@ namespace Bootstrap
 				finalTr.push_back(Trace(tr.second, tr.first));
 			}
 
-			return TraceOperator<dimension>(this->matInfo, finalTr);
+			return TraceOperator<dimension>(*(this->matInfo), finalTr);
 		}
 
 		TraceOperator<dimension> Commutator(const TraceOperator<dimension>& other)
 		{
-			assert(this->matInfo.Equals(other.matInfo));
+			assert(this->matInfo->Equals(*(other.matInfo)));
 
 			std::vector<Trace> res(0);
 
@@ -303,7 +303,7 @@ namespace Bootstrap
 							{
 								for(auto& o2 : tr1.Matrices.substr(i + 1))
 								{
-									assert(std::abs(this->matInfo.Commutator(o1, o2)) < 1e-8);
+									assert(std::abs(this->matInfo->Commutator(o1, o2)) < 1e-8);
 								}
 							}
 
@@ -313,7 +313,7 @@ namespace Bootstrap
 								tr1.Matrices.substr(0, i) +
 								tr2.Matrices.substr(j + 1);
 							res.push_back(Trace(
-								tr1.Coefficient * tr2.Coefficient * this->matInfo.Commutator(m1, m2),
+								tr1.Coefficient * tr2.Coefficient * this->matInfo->Commutator(m1, m2),
 								s
 							));
 						}
@@ -321,7 +321,7 @@ namespace Bootstrap
 				}
 			}
 
-			return TraceOperator<dimension>(this->matInfo, res);
+			return TraceOperator<dimension>(*(this->matInfo), res);
 		}
 	};
 

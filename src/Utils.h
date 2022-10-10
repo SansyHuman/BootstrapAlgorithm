@@ -60,6 +60,32 @@ namespace Bootstrap
 		return res;
 	}
 
+	Eigen::MatrixXcd VStack(const std::vector<Eigen::MatrixXcd>& matrices)
+	{
+		for(size_t i = 1; i < matrices.size(); i++)
+		{
+			assert(matrices[0].cols() == matrices[i].cols());
+		}
+
+		Eigen::Index rows = 0;
+		for(auto& m : matrices)
+		{
+			rows += m.rows();
+		}
+
+		Eigen::MatrixXcd res(rows, matrices[0].cols());
+		res.setZero();
+
+		Eigen::Index currRowOffset = 0;
+		for(auto& m : matrices)
+		{
+			res.block(currRowOffset, 0, m.rows(), m.cols()) = m;
+			currRowOffset += m.rows();
+		}
+
+		return res;
+	}
+
 	Eigen::MatrixXcd HStack(const Eigen::MatrixXcd& left, const Eigen::MatrixXcd& right)
 	{
 		assert(left.rows() == right.rows());
