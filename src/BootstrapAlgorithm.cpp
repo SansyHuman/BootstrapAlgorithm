@@ -21,10 +21,6 @@ typedef struct {
 
 double myvfunc(const std::vector<double>& x, std::vector<double>& grad, void* my_func_data)
 {
-    if(!grad.empty()) {
-        grad[0] = 0.0;
-        grad[1] = 0.5 / sqrt(x[1]);
-    }
     return sqrt(x[1]);
 }
 
@@ -32,10 +28,6 @@ double myvconstraint(const std::vector<double>& x, std::vector<double>& grad, vo
 {
     my_constraint_data* d = reinterpret_cast<my_constraint_data*>(data);
     double a = d->a, b = d->b;
-    if(!grad.empty()) {
-        grad[0] = 3 * a * (a * x[0] + b) * (a * x[0] + b);
-        grad[1] = -1.0;
-    }
     return ((a * x[0] + b) * (a * x[0] + b) * (a * x[0] + b) - x[1]);
 }
 
@@ -93,11 +85,35 @@ int main()
 
     auto hamilRewrite = hamil.Rewrite(useBasis);
 
-    auto hamilVec = OperatorToVector(cons.Solution(), hamilRewrite);
+    auto& sol = cons.Solution();
+    auto vec = OperatorToVector(sol, hamilRewrite);
+    auto unit = TraceOperator<2>(matInfo, { Trace(complex(1.0), "") });
 
-    std::cout << hamilVec << std::endl;
+    Eigen::MatrixXd AOp(0, sol.NumVariables());
+    AOp.setZero();
+    Eigen::VectorXd BOp(0, 1);
+    BOp.setZero();
 
-    nlopt::opt opt(nlopt::LD_MMA, 2);
+    AOp = VStack(AOp, OperatorToVector(sol, unit)).real();
+    Eigen::VectorXcd tmp(1, 1);
+    tmp << complex(1.0);
+    BOp = VStack(BOp, tmp).real();
+
+    Eigen::VectorXd init(sol.NumVariables(), 1);
+    init.setConstant(0.0);
+
+    SDPInit sdpInit(tables, AOp, BOp, init, -10.0, 10.0, 1.0, 1000, 1e-8);
+    auto param = sdpInit.Solve();
+
+    std::cout << param << std::endl;
+
+    nlopt::opt localOpt(nlopt::LN_COBYLA, 2);
+    localOpt.set_xtol_rel(1e-8);
+    localOpt.set_maxeval(1000);
+
+    nlopt::opt opt(nlopt::AUGLAG, 2);
+    opt.set_local_optimizer(localOpt);
+
     std::vector<double> lb(2);
     lb[0] = -HUGE_VAL; lb[1] = 0;
     opt.set_lower_bounds(lb);
@@ -105,7 +121,8 @@ int main()
     my_constraint_data data[2] = { {2,0}, {-1,1} };
     opt.add_inequality_constraint(myvconstraint, &data[0], 1e-8);
     opt.add_inequality_constraint(myvconstraint, &data[1], 1e-8);
-    opt.set_xtol_rel(1e-4);
+    opt.set_xtol_rel(1e-8);
+    opt.set_maxeval(10000);
     std::vector<double> x(2);
     x[0] = 1.234; x[1] = 5.678;
     double minf;

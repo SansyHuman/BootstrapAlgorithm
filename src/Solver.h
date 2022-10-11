@@ -195,6 +195,26 @@ namespace Bootstrap
 			return *sol;
 		}
 
+		Eigen::MatrixXcd& Param1()
+		{
+			return param1;
+		}
+
+		Eigen::MatrixXcd& Param2()
+		{
+			return param2;
+		}
+
+		Eigen::MatrixXcd& MatrixLine()
+		{
+			return matrixLine;
+		}
+
+		Eigen::MatrixXcd& MatrixQuad()
+		{
+			return matrixQuad;
+		}
+
 		Eigen::Index NumConstraints()
 		{
 			assert(this->matrixQuad.rows() == this->matrixLine.rows());

@@ -43,7 +43,7 @@ namespace Bootstrap
 		}
 
 	public:
-		MatrixInfo(Matrix matrices[dimension], Eigen::Matrix<complex, dimension, dimension>& commutators)
+		MatrixInfo(Matrix matrices[dimension], const Eigen::Matrix<complex, dimension, dimension>& commutators)
 		{
 			MatrixDuplicateCheck(matrices);
 
@@ -61,7 +61,7 @@ namespace Bootstrap
 			this->commutators = commutators;
 		}
 
-		void AddBasis(Matrix matrices[dimension], Eigen::Matrix<complex, dimension, dimension>& coefficients)
+		void AddBasis(Matrix matrices[dimension], const Eigen::Matrix<complex, dimension, dimension>& coefficients)
 		{
 			assert(coefficients.colPivHouseholderQr().rank() == dimension);
 			MatrixDuplicateCheck(matrices);
